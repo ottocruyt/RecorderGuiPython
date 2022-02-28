@@ -1,26 +1,36 @@
 # -*- coding: utf-8 -*-
 
+import configparser
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Config():
     import configparser
     dictionary = {}
     # default values:  
-    dictionary['option_name_bool'] = False
-    dictionary['veh_xml_path'] = "str"
+    dictionary['veh_xml_path'] = ""
 
     config = configparser.ConfigParser()
 
     def importCfg(self):
-        self.config.read("config.ini")
-        self.dictionary['veh_xml_path'] = self.config.get("section_name", "veh_xml_path")
-        self.dictionary['option_name_bool'] = self.config.getboolean("section_name", "option_name_bool")
-        print("\nConfig file loaded.")
+        try:
+            self.config.read("config.ini")
+            self.dictionary['veh_xml_path'] = self.config.get("paths", "veh_xml_path")
+            print("\nConfig file loaded.")
+        except configparser.NoSectionError as inst:
+            print('Expected section missing in config: ' + str(inst))
+        except Exception as inst:
+            print('Oops...problem openning config file...')
+           # print(inst) 
+
 
     def writeCfg(self):
-        f = open("config.ini", 'w')
-        self.config.write(f)
-        f.close()
+        try:
+            f = open("config.ini", 'w')
+            self.config.write(f)
+        except Exception as inst:
+            print('Oops...problem writing to config file...')
+        finally:
+            f.close()
     
     def set(self, section, setting, value):
         self.config.set(section, setting, value)
@@ -33,18 +43,19 @@ class Agv():
         self.ID = ID
         self.IP = IP
 
-
-
 class VehXml():
     import xml.etree.ElementTree as ET
     agvs = []
     def __init__(self, path):
-        tree = self.ET.parse(path)
-        root = tree.getroot()
-        for agvlist in root:
-            for agv in agvlist:
-                self.agvs.append(Agv(agv.find('ID').text, agv.find('IP').text))
-                print(agv.find('ID').text + " : " + agv.find('IP').text)
+        try:
+            tree = self.ET.parse(path)
+            root = tree.getroot()
+            for agvlist in root:
+                for agv in agvlist:
+                    self.agvs.append(Agv(agv.find('ID').text, agv.find('IP').text))
+        except Exception as inst:
+            print('Oops...problem loading vehicle XML...')
+            print(str(inst))
 
     def printAgvs(self):
         print("Agv List:")
