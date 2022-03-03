@@ -45,8 +45,10 @@ class Agv():
 
 class VehXml():
     import xml.etree.ElementTree as ET
+    path = ""
     agvs = []
     def __init__(self, path):
+        self.path = path
         try:
             tree = self.ET.parse(path)
             root = tree.getroot()
@@ -61,8 +63,20 @@ class VehXml():
         print("Agv List:")
         for agv in self.agvs:
             print(agv.ID + " : " + agv.IP)
-                
 
+    def setPath(self, path):
+        self.path = path
+        try:
+            tree = self.ET.parse(path)
+            root = tree.getroot()
+            for agvlist in root:
+                for agv in agvlist:
+                    self.agvs.append(Agv(agv.find('ID').text, agv.find('IP').text))
+        except Exception as inst:
+            print('Oops...problem loading vehicle XML...')
+            print(str(inst))
+
+class Model()
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -94,12 +108,12 @@ class Ui_MainWindow(object):
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(380, 100, 141, 16))
         self.label.setObjectName("label")
-        self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_3.setGeometry(QtCore.QRect(10, 120, 341, 81))
+        self.setVehXmlBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.setVehXmlBtn.setGeometry(QtCore.QRect(10, 120, 341, 81))
         font = QtGui.QFont()
         font.setPointSize(20)
-        self.pushButton_3.setFont(font)
-        self.pushButton_3.setObjectName("pushButton_3")
+        self.setVehXmlBtn.setFont(font)
+        self.setVehXmlBtn.setObjectName("setVehXmlBtn")
         self.listWidget = QtWidgets.QListWidget(self.centralwidget)
         self.listWidget.setGeometry(QtCore.QRect(380, 120, 221, 251))
         self.listWidget.setObjectName("listWidget")
@@ -117,6 +131,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
+        self.connectListeners(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -126,7 +141,7 @@ class Ui_MainWindow(object):
         self.pushButton_2.setText(_translate("MainWindow", "Select Recording Folder"))
         self.checkBox.setText(_translate("MainWindow", "Convert ALL"))
         self.label.setText(_translate("MainWindow", "Recordings in selected folder"))
-        self.pushButton_3.setText(_translate("MainWindow", "Select AgvToolkit XML"))
+        self.setVehXmlBtn.setText(_translate("MainWindow", "Select AgvToolkit XML"))
         __sortingEnabled = self.listWidget.isSortingEnabled()
         self.listWidget.setSortingEnabled(False)
         item = self.listWidget.item(0)
@@ -135,6 +150,12 @@ class Ui_MainWindow(object):
         item.setText(_translate("MainWindow", "Rec2"))
         self.listWidget.setSortingEnabled(__sortingEnabled)
 
+    def connectListeners(self, MainWindow):
+        self.setVehXmlBtn.clicked.connect()
+
+    def selectVehXml():
+
+        
 
 if __name__ == "__main__":
     import sys
