@@ -6,6 +6,7 @@ import sys
 import os
 import time
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
 PATH_ROLE = 32
 
@@ -104,9 +105,29 @@ class Model():
     vehXml = VehXml(cfg.dictionary['veh_xml_path'])
     recFolder = ""
     def __init__(self):
-        self.vehXml.printAgvs()
         #self.cfg.writeCfg()
+        self.vehXml.printAgvs()
+        
+class ConverterWorker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+    selected_items = []
 
+    def __init__(self, selected_items):
+        super().__init__()
+        self.selected_items = selected_items
+
+    def run(self):
+        current_item = 0
+        self.progress.emit(0)
+        for item in self.selected_items:
+            print("Item selected text: " + item.text())
+            print("Item path: " + str(item.data(PATH_ROLE)))
+            print("Converting recording at: " +  str(item.data(PATH_ROLE)))
+            time.sleep(1)
+            current_item += 1
+            self.progress.emit(int(current_item/max(len(self.selected_items),1)*100))
+        self.finished.emit()
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, model):
@@ -235,26 +256,40 @@ class Ui_MainWindow(object):
         if self.AllcheckBox.isChecked():
             selected_items = self.listWidget.selectAll()
         selected_items = self.listWidget.selectedItems()
-        current_item = 0
-        self.setProgressbar(current_item/max(len(selected_items),1)*100)
         print("Selected recordings: " + str(len(selected_items)))
-        for item in selected_items:
-            print("Item selected text: " + item.text())
-            print("Item selected: " + str(item))
-            print("Item path: " + str(item.data(PATH_ROLE)))
-            self.convertRecording(item.data(PATH_ROLE))
-            current_item += 1
-            self.setProgressbar(current_item/max(len(selected_items),1)*100)
-            
-        self.setProgressbar(100)
+        self.convertRecordingsTask(selected_items)
 
+    def convertRecordingsTask(self, selected_items):
+            self.convertRecsBtn.setEnabled(True)
+            # Step 2: Create a QThread object
+            self.thread = QThread()
+            # Step 3: Create a worker object
+            self.worker = ConverterWorker(selected_items)
+            # Step 4: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.setProgressbar)
+            # Step 6: Start the thread
+            self.thread.start()
 
+            # Final resets
+            self.convertRecsBtn.setEnabled(False)
+            self.thread.finished.connect(
+                lambda: print("Converter thread finished")
+            )
+            self.thread.finished.connect(
+                lambda: self.setProgressbar(100)
+            )
+            self.thread.finished.connect(
+                lambda: self.convertRecsBtn.setEnabled(True)
+            )
     
-    def convertRecording(self, path):
-        print("Converting recording at: " + str(path))
-        time.sleep(5)
-
     def setProgressbar(self, percent):
+        print("\nSet progress to: " + str(percent) + "\n")
         self.progressBar.setProperty("value", percent)
 
 
