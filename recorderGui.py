@@ -4,7 +4,10 @@ import configparser
 from fileinput import filename
 import sys
 import os
+import time
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+PATH_ROLE = 32
 
 class Config():
     import configparser
@@ -130,9 +133,9 @@ class Ui_MainWindow(object):
         self.progressBar.setGeometry(QtCore.QRect(10, 510, 771, 31))
         self.progressBar.setProperty("value", 100)
         self.progressBar.setObjectName("progressBar")
-        self.checkBox = QtWidgets.QCheckBox(self.centralwidget)
-        self.checkBox.setGeometry(QtCore.QRect(520, 100, 81, 17))
-        self.checkBox.setObjectName("checkBox")
+        self.AllcheckBox = QtWidgets.QCheckBox(self.centralwidget)
+        self.AllcheckBox.setGeometry(QtCore.QRect(520, 100, 81, 17))
+        self.AllcheckBox.setObjectName("AllcheckBox")
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(380, 100, 141, 16))
         self.label.setObjectName("label")
@@ -165,7 +168,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Recorder Gui"))
         self.convertRecsBtn.setText(_translate("MainWindow", "Convert Recordings"))
         self.selectRecFolderBtn.setText(_translate("MainWindow", "Select Recording Folder"))
-        self.checkBox.setText(_translate("MainWindow", "Convert ALL"))
+        self.AllcheckBox.setText(_translate("MainWindow", "Convert ALL"))
         self.label.setText(_translate("MainWindow", "Recordings in folder:"))
         self.setVehXmlBtn.setText(_translate("MainWindow", "Select AgvToolkit XML"))
         __sortingEnabled = self.listWidget.isSortingEnabled()
@@ -222,16 +225,37 @@ class Ui_MainWindow(object):
         for recording in recordings_in_folder:
             item = QtWidgets.QListWidgetItem()
             item.setText(recording.fileName)
+            item.setData(PATH_ROLE, recording.path)
             self.listWidget.addItem(item)       
             print(recording.fileName)
             print(recording.path)
             count += 1
 
     def convertRecordings(self):
+        if self.AllcheckBox.isChecked():
+            selected_items = self.listWidget.selectAll()
         selected_items = self.listWidget.selectedItems()
+        current_item = 0
+        self.setProgressbar(current_item/max(len(selected_items),1)*100)
+        print("Selected recordings: " + str(len(selected_items)))
         for item in selected_items:
-            print("Item selcted text: " + item.text())
-            print("Item selcted: " + str(item))
+            print("Item selected text: " + item.text())
+            print("Item selected: " + str(item))
+            print("Item path: " + str(item.data(PATH_ROLE)))
+            self.convertRecording(item.data(PATH_ROLE))
+            current_item += 1
+            self.setProgressbar(current_item/max(len(selected_items),1)*100)
+            
+        self.setProgressbar(100)
+
+
+    
+    def convertRecording(self, path):
+        print("Converting recording at: " + str(path))
+        time.sleep(5)
+
+    def setProgressbar(self, percent):
+        self.progressBar.setProperty("value", percent)
 
 
 if __name__ == "__main__":
