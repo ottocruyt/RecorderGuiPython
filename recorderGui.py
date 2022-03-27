@@ -8,6 +8,8 @@ import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from pathlib import Path
+from robotic_scripts_tools.DatalogConverter import Recog3dToVideo
+
 
 
 PATH_ROLE = 32
@@ -105,7 +107,7 @@ class VehXml():
 class Model():
     cfg = Config()
     vehXml = VehXml(cfg.dictionary['veh_xml_path'])
-    recFolder = ""
+    recFolder = cfg.dictionary['rec_folder_path']
     def __init__(self):
         #self.cfg.writeCfg()
         self.vehXml.printAgvs()
@@ -113,6 +115,7 @@ class Model():
 class ConverterWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
+    sub_progress = pyqtSignal(int)
     selected_items = []
 
     def __init__(self, selected_items):
@@ -123,10 +126,8 @@ class ConverterWorker(QObject):
         current_item = 0
         self.progress.emit(0)
         for item in self.selected_items:
-            print("Item selected text: " + item.text())
-            print("Item path: " + str(item.data(PATH_ROLE)))
             print("Converting recording at: " +  str(item.data(PATH_ROLE)))
-            time.sleep(1)
+            Recog3dToVideo.RecordConverter(str(item.data(PATH_ROLE).resolve()))
             current_item += 1
             self.progress.emit(int(current_item/max(len(self.selected_items),1)*100))
         self.finished.emit()
@@ -208,7 +209,6 @@ class Ui_MainWindow(object):
         self.SelectRecFolderAction.triggered.connect(self.selectRecFolder)
         self.SelectVehXmlAction.triggered.connect(self.selectVehXml)
 
-
     def selectVehXml(self):
         dlg = QtWidgets.QFileDialog()
         dlg.setFileMode(QtWidgets.QFileDialog.AnyFile)
@@ -224,10 +224,11 @@ class Ui_MainWindow(object):
             print("Nothing Selected")
 
     def selectRecFolder(self):
-        folder = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Select Recording Directory"))
+        folder = str(QtWidgets.QFileDialog.getExistingDirectory(None,directory=self.model.recFolder, caption="Select Recording Directory"))
         if folder:
             print('Newly selected recordings folder: ' + folder)
             model.recFolder = folder
+            model.cfg.set("paths", "rec_folder_path", str(folder))
             self.updateRecordingsOverview(model.recFolder)
         else:
             print('No folder selected.')
@@ -244,14 +245,6 @@ class Ui_MainWindow(object):
         for entry in self.scanForTarFiles(recFolder):
             recordings_in_folder.append(Recording(entry.resolve()))
             print("Rec: " + entry.name + " at " + str(entry.resolve()))
-
-        #for entry in os.scandir(recFolder):
-        #    if entry.is_dir():
-        #    if not (entry.is_file() and entry.name.endswith('.tar.gz')):
-        #        continue
-        #    else:
-        #        recordings_in_folder.append(Recording(entry.path))
-        #        print("Rec: " + entry.name + " at " + entry.path)
 
         # show the recordings in the view
         self.listWidget.clear()
@@ -272,6 +265,7 @@ class Ui_MainWindow(object):
         self.convertRecordingsTask(selected_items)
 
     def convertRecordingsTask(self, selected_items):
+            self.selectedItems = selected_items
             self.convertRecsBtn.setEnabled(True)
             # Step 2: Create a QThread object
             self.thread = QThread()
@@ -285,6 +279,7 @@ class Ui_MainWindow(object):
             self.worker.finished.connect(self.worker.deleteLater)
             self.thread.finished.connect(self.thread.deleteLater)
             self.worker.progress.connect(self.setProgressbar)
+
             # Step 6: Start the thread
             self.thread.start()
 
@@ -303,7 +298,6 @@ class Ui_MainWindow(object):
     def setProgressbar(self, percent):
         print("\nSet progress to: " + str(percent) + "\n")
         self.progressBar.setProperty("value", percent)
-
 
 if __name__ == "__main__":
     import sys
