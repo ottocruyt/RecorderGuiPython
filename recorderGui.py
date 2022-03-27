@@ -8,6 +8,7 @@ import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
+
 PATH_ROLE = 32
 
 class Config():
