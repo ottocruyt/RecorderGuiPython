@@ -7,6 +7,7 @@ import os
 import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from pathlib import Path
 
 
 PATH_ROLE = 32
@@ -231,18 +232,26 @@ class Ui_MainWindow(object):
         else:
             print('No folder selected.')
 
+    def scanForTarFiles(self, dir):
+        return Path(dir).rglob("*.tar.gz")
+
     def updateRecordingsOverview(self, recFolder):
         count = 0
         recordings_in_folder = []
         recordings_in_folder.clear()
 
         # scan folder for recordings and populate the recordings array
-        for entry in os.scandir(recFolder):
-            if not (entry.is_file() and entry.name.endswith('.tar.gz')):
-                continue
-            else:
-                recordings_in_folder.append(Recording(entry.path))
-                print("Rec: " + entry.name + " at " + entry.path)
+        for entry in self.scanForTarFiles(recFolder):
+            recordings_in_folder.append(Recording(entry.resolve()))
+            print("Rec: " + entry.name + " at " + str(entry.resolve()))
+
+        #for entry in os.scandir(recFolder):
+        #    if entry.is_dir():
+        #    if not (entry.is_file() and entry.name.endswith('.tar.gz')):
+        #        continue
+        #    else:
+        #        recordings_in_folder.append(Recording(entry.path))
+        #        print("Rec: " + entry.name + " at " + entry.path)
 
         # show the recordings in the view
         self.listWidget.clear()
