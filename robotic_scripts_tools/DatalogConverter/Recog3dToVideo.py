@@ -90,15 +90,13 @@ def RecordConverter(file):
 		# generate path name that is not existing
 		inc = 1
 		while os.path.isdir(tmp_folder):
-			tmp_folder = foldername_output + "_tmp"
+			tmp_folder = foldername_output + "_tmp" + str(inc)
 			inc += 1
 		os.makedirs(tmp_folder)
 
-		# generate path name that is not existing
-		inc = 1
-		while os.path.isdir(outpath):
-			outpath = foldername_output
-			inc += 1
+		# remove outpath if it exist (clean up before recreating)
+		if os.path.isdir(outpath):
+			shutil.rmtree(outpath)
 		os.makedirs(outpath)
 	else:
 		print("file doesn't exist -- abort")

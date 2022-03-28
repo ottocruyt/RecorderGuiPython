@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import configparser
-from fileinput import filename
 import sys
 import os
-import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from pathlib import Path
 from robotic_scripts_tools.DatalogConverter import Recog3dToVideo
-
+#import ptvsd
 
 
 PATH_ROLE = 32
@@ -123,6 +121,7 @@ class ConverterWorker(QObject):
         self.selected_items = selected_items
 
     def run(self):
+        #ptvsd.debug_this_thread()
         current_item = 0
         self.progress.emit(0)
         for item in self.selected_items:
@@ -179,8 +178,8 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         mainLayout.addWidget(self.convertRecsBtn)
-        listLabelLayout.addWidget(self.label)
-        listLabelLayout.addWidget(self.AllcheckBox)
+        listLabelLayout.addWidget(self.label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        listLabelLayout.addWidget(self.AllcheckBox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         mainLayout.addLayout(listLabelLayout)
         mainLayout.addWidget(self.listWidget)
         mainLayout.addWidget(self.progressBar)
@@ -189,6 +188,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.connectListeners()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.updateRecordingsOverview(model.recFolder)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -208,6 +208,7 @@ class Ui_MainWindow(object):
         self.convertRecsBtn.clicked.connect(self.convertRecordings)
         self.SelectRecFolderAction.triggered.connect(self.selectRecFolder)
         self.SelectVehXmlAction.triggered.connect(self.selectVehXml)
+        self.AllcheckBox.stateChanged.connect(self.checkBoxChanged)
 
     def selectVehXml(self):
         dlg = QtWidgets.QFileDialog()
@@ -222,6 +223,10 @@ class Ui_MainWindow(object):
             model.cfg.set("paths", "veh_xml_path",filename[0])
         else:
             print("Nothing Selected")
+
+    def checkBoxChanged(self):
+        if self.AllcheckBox.isChecked():
+            self.listWidget.selectAll()
 
     def selectRecFolder(self):
         folder = str(QtWidgets.QFileDialog.getExistingDirectory(None,directory=self.model.recFolder, caption="Select Recording Directory"))
