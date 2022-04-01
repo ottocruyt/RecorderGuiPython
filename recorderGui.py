@@ -135,6 +135,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow, model):
         self.model = model
         MainWindow.setObjectName("MainWindow")
+        MainWindow.setWindowIcon(QtGui.QIcon("resources/cam.png"))
         MainWindow.setEnabled(True)
         MainWindow.resize(400, 600)
         mainLayout = QtWidgets.QVBoxLayout()
