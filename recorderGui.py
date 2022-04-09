@@ -138,7 +138,9 @@ class Ui_MainWindow(object):
         MainWindow.setWindowIcon(QtGui.QIcon("resources/cam.png"))
         MainWindow.setEnabled(True)
         MainWindow.resize(400, 600)
-        mainLayout = QtWidgets.QVBoxLayout()
+        mainLayout = QtWidgets.QHBoxLayout()
+        mainLayoutLocal = QtWidgets.QVBoxLayout()
+        mainLayoutRemote = QtWidgets.QVBoxLayout()
         listLabelLayout = QtWidgets.QHBoxLayout()
 
 
@@ -150,6 +152,14 @@ class Ui_MainWindow(object):
         #self.convertRecsBtn.setGeometry(QtCore.QRect(10, 10, 350, 80))
         self.convertRecsBtn.setFont(font)
         self.convertRecsBtn.setObjectName("convertRecsBtn")
+        self.getRemoteRecsBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.getRemoteRecsBtn.setFont(font)
+        self.getRemoteRecsBtn.setObjectName("getRemoteRecsBtn")
+        self.selectAgvComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.selectAgvComboBox.setObjectName("selectAgvComboBox")
+        self.selectAgvComboBox.setEditable(True)
+        self.selectAgvComboBox.lineEdit().setPlaceholderText("Select AGV")
+
         self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
         self.progressBar.setEnabled(False)
         #self.progressBar.setGeometry(QtCore.QRect(10, 510, 350, 30))
@@ -178,23 +188,30 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
-        mainLayout.addWidget(self.convertRecsBtn)
+        mainLayoutLocal.addWidget(self.convertRecsBtn)
         listLabelLayout.addWidget(self.label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
         listLabelLayout.addWidget(self.AllcheckBox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        mainLayout.addLayout(listLabelLayout)
-        mainLayout.addWidget(self.listWidget)
-        mainLayout.addWidget(self.progressBar)
+        mainLayoutLocal.addLayout(listLabelLayout)
+        mainLayoutLocal.addWidget(self.listWidget)
+        mainLayoutLocal.addWidget(self.progressBar)
+        mainLayoutRemote.addWidget(self.getRemoteRecsBtn, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+        mainLayoutRemote.addWidget(self.selectAgvComboBox, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+        mainLayoutRemote.addStretch()
+        mainLayout.addLayout(mainLayoutLocal, stretch=50)
+        mainLayout.addLayout(mainLayoutRemote, stretch=50)
         self.centralwidget.setLayout(mainLayout)
 
         self.retranslateUi(MainWindow)
         self.connectListeners()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.updateRecordingsOverview(model.recFolder)
+        self.updateAgvList()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Recorder Gui"))
         self.convertRecsBtn.setText(_translate("MainWindow", "Convert Recordings"))
+        self.getRemoteRecsBtn.setText(_translate("MainWindow", "Get Remote Recordings"))
         self.AllcheckBox.setText(_translate("MainWindow", "Convert ALL"))
         self.label.setText(_translate("MainWindow", "Recordings in folder:"))
         __sortingEnabled = self.listWidget.isSortingEnabled()
@@ -207,6 +224,7 @@ class Ui_MainWindow(object):
 
     def connectListeners(self):
         self.convertRecsBtn.clicked.connect(self.convertRecordings)
+        self.getRemoteRecsBtn.clicked.connect(self.getRemoteRecordings)
         self.SelectRecFolderAction.triggered.connect(self.selectRecFolder)
         self.SelectVehXmlAction.triggered.connect(self.selectVehXml)
         self.AllcheckBox.stateChanged.connect(self.checkBoxChanged)
@@ -222,6 +240,7 @@ class Ui_MainWindow(object):
             print("New agv list:")
             model.vehXml.printAgvs()
             model.cfg.set("paths", "veh_xml_path",filename[0])
+            self.updateAgvList()
         else:
             print("Nothing Selected")
 
@@ -301,6 +320,15 @@ class Ui_MainWindow(object):
                 lambda: self.convertRecsBtn.setEnabled(True)
             )
     
+    def getRemoteRecordings(self):
+        print("Get Remote recs")
+
+    def updateAgvList(self):
+        self.selectAgvComboBox.clear()
+        for agv in model.vehXml.agvs:
+            self.selectAgvComboBox.addItem(str(agv.ID) + ": " + agv.IP)
+
+
     def setProgressbar(self, percent):
         print("\nSet progress to: " + str(percent) + "\n")
         self.progressBar.setProperty("value", percent)
