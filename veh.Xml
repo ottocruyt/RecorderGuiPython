@@ -74,12 +74,53 @@
       <RemoteSettings>/Hard Disk/Ensor/</RemoteSettings>
       <RemoteTwinCAT>/Hard Disk/TwinCAT/Boot/</RemoteTwinCAT>
       <CameraEnabled>true</CameraEnabled>
-      <GuiPort>1223</GuiPort>
-      <RackPort>99</RackPort>
-      <RemoteRackLog>/data/logs</RemoteRackLog>
-      <RemoteRackRecord>/records</RemoteRackRecord>
-      <RemoteRackConfig>/etc/3d_config.conf</RemoteRackConfig>
-      <RemoteRackCalibration>/etc/3d_calib.conf</RemoteRackCalibration>
+      <GuiPort>1222</GuiPort>
+      <RackPort>98</RackPort>
+      <RemoteRackLog>/data/logs2</RemoteRackLog>
+      <RemoteRackRecord>/records2</RemoteRackRecord>
+      <RemoteRackConfig>/etc/3d_config2.conf</RemoteRackConfig>
+      <RemoteRackCalibration>/etc/3d_calib2.conf</RemoteRackCalibration>
+      <LocalRackCalibration>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION\Download\Latest Backup\DEMO_VNA_LION\Rack\3d_calib.conf</LocalRackCalibration>
+      <RackUser>root</RackUser>
+      <RackPassword>RlFdlwiqN8q5oWb1ITdmSINUnTxF42Zi54wIw/wArhP4+B8SWBeT43cc+FBcIqSYJg8xwP+l0OqpGaA2SelUgg==</RackPassword>
+    </Egv>
+    <Egv>
+      <Logger />
+      <ID>DEMO_VNA_v1.05</ID>
+      <IP>10.203.215.176</IP>
+      <IONEnabled>false</IONEnabled>
+      <Checked>false</Checked>
+      <ConfigBackup>false</ConfigBackup>
+      <LayoutBackup>false</LayoutBackup>
+      <ProgramBackup>false</ProgramBackup>
+      <IniBackup>true</IniBackup>
+      <SavBackup>true</SavBackup>
+      <OthersBackup>false</OthersBackup>
+      <Protocol>Sftp</Protocol>
+      <User>FTPUser</User>
+      <Password>ge2ydQOnxVXvKxrp+KIVvw==</Password>
+      <RemoteDesktopPassword>5XFCpWjv9ZRxjcqiJ15gFA==</RemoteDesktopPassword>
+      <LocalLayout>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION\Download\layout.arj</LocalLayout>
+      <LocalConfig>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION-fast-multipleNodes\Download\config.arj</LocalConfig>
+      <LocalProgram>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION-fast-multipleNodes\Download\program.arj</LocalProgram>
+      <LocalTeachInPath>\Data\Ensor\teach_in</LocalTeachInPath>
+      <LocalBackup>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION\Download\Vehicle Backup</LocalBackup>
+      <LatestLocalBackup>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION\Download\Latest Backup</LatestLocalBackup>
+      <RemoteLayout>/Hard Disk/Layout.arj</RemoteLayout>
+      <RemoteConfig>/Hard Disk/Config.arj</RemoteConfig>
+      <RemoteProgram>/Hard Disk/Program.arj</RemoteProgram>
+      <RemoteTeachInPath>/</RemoteTeachInPath>
+      <RemoteHex>/</RemoteHex>
+      <RemoteLogs>/</RemoteLogs>
+      <RemoteSettings>/Hard Disk/Ensor/</RemoteSettings>
+      <RemoteTwinCAT>/Hard Disk/TwinCAT/Boot/</RemoteTwinCAT>
+      <CameraEnabled>false</CameraEnabled>
+      <GuiPort>1222</GuiPort>
+      <RackPort>98</RackPort>
+      <RemoteRackLog>/data/logs2</RemoteRackLog>
+      <RemoteRackRecord>/records2</RemoteRackRecord>
+      <RemoteRackConfig>/etc/3d_config2.conf</RemoteRackConfig>
+      <RemoteRackCalibration>/etc/3d_calib2.conf</RemoteRackCalibration>
       <LocalRackCalibration>C:\teamsystems\Ensor - Projects\Standard_MUM_3Dcam\Development\KMA_VNA_LION\Download\Latest Backup\DEMO_VNA_LION\Rack\3d_calib.conf</LocalRackCalibration>
       <RackUser>root</RackUser>
       <RackPassword>RlFdlwiqN8q5oWb1ITdmSINUnTxF42Zi54wIw/wArhP4+B8SWBeT43cc+FBcIqSYJg8xwP+l0OqpGaA2SelUgg==</RackPassword>

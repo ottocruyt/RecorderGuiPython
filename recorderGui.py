@@ -53,10 +53,15 @@ class Config():
 
 class Agv():
     ID = ''
-    IP = ''
-    def __init__(self, ID, IP):
+    def __init__(self, ID, IP='', guiPort='', rackPort='', remoteRackLogPath='', remoteRackRecordPath='', remoteRackConfigPath='', remoteRackCalibrationPath=''):
         self.ID = ID
         self.IP = IP
+        self.guiPort = guiPort
+        self.rackPort = rackPort
+        self.remoteRackLogPath = remoteRackLogPath
+        self.remoteRackRecordPath = remoteRackRecordPath
+        self.remoteRackConfigPath = remoteRackConfigPath
+        self.remoteRackCalibrationPath = remoteRackCalibrationPath
 
 class Recording():
     fileName = ''
@@ -70,37 +75,50 @@ class VehXml():
     path = ""
     agvs = []
     def __init__(self, path):
-        self.path = path
-        try:
-            tree = self.ET.parse(path)
-            root = tree.getroot()
-            for agvlist in root:
-                for agv in agvlist:
-                    self.agvs.append(Agv(agv.find('ID').text, agv.find('IP').text))
-        except Exception as inst:
-            print('Oops...problem loading vehicle XML...')
-            print('Used path: ' + str(path))
-            print(str(inst))
+        self.agvs.clear()
+        self.parseXml(path)
+        
 
     def printAgvs(self):
         print("Agv List:")
         for agv in self.agvs:
             print(agv.ID + " : " + agv.IP)
 
-    def setPath(self, path):
-        print('Setting path to vehXml to: ' + str(path))
-        print('Previous path: ' + str(self.path))
+    def parseXml(self, path):
         self.path = path
         try:
             tree = self.ET.parse(path)
             root = tree.getroot()
-            self.agvs.clear()
             for agvlist in root:
                 for agv in agvlist:
-                    self.agvs.append(Agv(agv.find('ID').text, agv.find('IP').text))
+                    if(agv.find('CameraEnabled').text.upper() == 'TRUE'):
+                        ID = agv.find('ID').text
+                        IP = agv.find('IP').text
+                        guiPort = agv.find('GuiPort').text
+                        rackPort = agv.find('RackPort').text
+                        remoteRackLog = agv.find('RemoteRackLog').text
+                        remoteRackRecord = agv.find('RemoteRackRecord').text
+                        remoteRackConfig = agv.find('RemoteRackConfig').text
+                        remoteRackCalibration = agv.find('RemoteRackCalibration').text
+                        self.agvs.append(Agv(ID=ID, 
+                            IP=IP, 
+                            guiPort=guiPort, 
+                            rackPort=rackPort, 
+                            remoteRackLogPath=remoteRackLog, 
+                            remoteRackRecordPath=remoteRackRecord, 
+                            remoteRackConfigPath=remoteRackConfig, 
+                            remoteRackCalibrationPath=remoteRackCalibration))
         except Exception as inst:
             print('Oops...problem loading vehicle XML...')
+            print('Used path: ' + str(path))
             print(str(inst))
+
+
+    def setPath(self, path):
+        print('Setting path to vehXml to: ' + str(path))
+        print('Previous path: ' + str(self.path))
+        self.agvs.clear()
+        self.parseXml(path)
 
 class Model():
     cfg = Config()
@@ -109,7 +127,42 @@ class Model():
     def __init__(self):
         #self.cfg.writeCfg()
         self.vehXml.printAgvs()
+
+class ViewLoadedVehXml(QtWidgets.QMainWindow):
+    def __init__(self, model, parent=None):
+        super(ViewLoadedVehXml, self).__init__(parent)
+        self.setWindowTitle("Loaded Vehicle XML")
+        self.setObjectName("ViewLoadedVehXml")
+        self.resize(400, 600)
+        central_widget = QtWidgets.QWidget() 
+        self.setCentralWidget(central_widget)
+        mainLayout = QtWidgets.QVBoxLayout()
+        for agv in model.vehXml.agvs:
+            label = QtWidgets.QLabel(self)
+            label.setText(agv.ID + ": " + agv.IP)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     GUI port: " + agv.guiPort)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     RACK port: " + agv.rackPort)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     RACK Log Path: " + agv.remoteRackLogPath)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     RACK Record Path: " + agv.remoteRackRecordPath)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     RACK Config Path: " + agv.remoteRackConfigPath)
+            mainLayout.addWidget(label)
+            label = QtWidgets.QLabel(self)
+            label.setText("     RACK Calibration Path: " + agv.remoteRackCalibrationPath)
+            mainLayout.addWidget(label)
         
+        mainLayout.addStretch()
+        central_widget.setLayout(mainLayout)
+
 class ConverterWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
@@ -181,8 +234,10 @@ class Ui_MainWindow(object):
         self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 21))
         self.menubar.setObjectName("menubar")
         fileMenu = self.menubar.addMenu('&File')
+        viewMenu = self.menubar.addMenu('&View')
         self.SelectVehXmlAction = fileMenu.addAction("Select AGV Toolkit Vehicle XML")
         self.SelectRecFolderAction = fileMenu.addAction("Select Recording Folder")
+        self.ViewLoadedVehXML = viewMenu.addAction("View loaded Vehicle XML")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -226,8 +281,10 @@ class Ui_MainWindow(object):
         self.convertRecsBtn.clicked.connect(self.convertRecordings)
         self.getRemoteRecsBtn.clicked.connect(self.getRemoteRecordings)
         self.SelectRecFolderAction.triggered.connect(self.selectRecFolder)
+        self.ViewLoadedVehXML.triggered.connect(self.viewLoadedVehXML)
         self.SelectVehXmlAction.triggered.connect(self.selectVehXml)
         self.AllcheckBox.stateChanged.connect(self.checkBoxChanged)
+        self.viewLoadedVehXMLWindow = ViewLoadedVehXml(self.model)
 
     def selectVehXml(self):
         dlg = QtWidgets.QFileDialog()
@@ -257,6 +314,9 @@ class Ui_MainWindow(object):
             self.updateRecordingsOverview(model.recFolder)
         else:
             print('No folder selected.')
+
+    def viewLoadedVehXML(self):
+        self.viewLoadedVehXMLWindow.show()
 
     def scanForTarFiles(self, dir):
         return Path(dir).rglob("*.tar.gz")
