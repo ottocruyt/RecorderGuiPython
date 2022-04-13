@@ -7,7 +7,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
 from PyQt5.QtCore import QObject, QThread, pyqtSignal, QUrl
 from pathlib import Path
 from robotic_scripts_tools.DatalogConverter import Recog3dToVideo
-#import ptvsd
 
 
 PATH_ROLE = 32
@@ -78,13 +77,13 @@ class RackConnection():
         self.nam = QtNetwork.QNetworkAccessManager()
         self.nam.finished.connect(self.handleResponse)
         self.nam.get(req)
+        self.model.remoteRecordings.clear()
       
     def handleResponse(self, reply):
 
         er = reply.error()
 
         if er == QtNetwork.QNetworkReply.NoError:
-
             bytes_string = reply.readAll()
             bytes_string_decoded = str(bytes_string, 'utf-8') 
             #print(bytes_string_decoded)
@@ -96,10 +95,13 @@ class RackConnection():
                     print("recording from " + str(self.IP) + ": " + str(remoteRackRecording))
                     remoteRackRecordings.append(remoteRackRecording)
             self.model.remoteRecordings = remoteRackRecordings
-            self.model.printRemoteRecordings()
         else:
             print("Error occured: ", er)
             print(reply.errorString())
+            dlg = QtWidgets.QMessageBox()
+            dlg.setWindowTitle("Problem Connecting")
+            dlg.setText("No connection could be made with " + str(self.IP))
+            dlg.exec()
         
         self.callback()
 
@@ -170,10 +172,6 @@ class Model():
         #self.cfg.writeCfg()
         self.vehXml.printAgvs()
 
-    def printRemoteRecordings(self):
-        for recording in self.remoteRecordings:
-            print("Model rec: " + str(recording))
-
 class ViewLoadedVehXml(QtWidgets.QMainWindow):
     def __init__(self, model, parent=None):
         super(ViewLoadedVehXml, self).__init__(parent)
@@ -237,18 +235,13 @@ class Ui_MainWindow(object):
         MainWindow.setWindowIcon(QtGui.QIcon("resources/cam.png"))
         MainWindow.setEnabled(True)
         MainWindow.resize(400, 600)
-        mainLayout = QtWidgets.QHBoxLayout()
-        mainLayoutLocal = QtWidgets.QVBoxLayout()
-        mainLayoutRemote = QtWidgets.QVBoxLayout()
+        gridLayout = QtWidgets.QGridLayout()
         listLabelLayout = QtWidgets.QHBoxLayout()
-
-
         font = QtGui.QFont()
         font.setPointSize(16)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.convertRecsBtn = QtWidgets.QPushButton(self.centralwidget)
-        #self.convertRecsBtn.setGeometry(QtCore.QRect(10, 10, 350, 80))
         self.convertRecsBtn.setFont(font)
         self.convertRecsBtn.setObjectName("convertRecsBtn")
         self.getRemoteRecsBtn = QtWidgets.QPushButton(self.centralwidget)
@@ -258,10 +251,8 @@ class Ui_MainWindow(object):
         self.selectAgvComboBox.setObjectName("selectAgvComboBox")
         self.selectAgvComboBox.setEditable(True)
         self.selectAgvComboBox.lineEdit().setPlaceholderText("Select AGV")
-
         self.progressBar = QtWidgets.QProgressBar(self.centralwidget)
         self.progressBar.setEnabled(False)
-        #self.progressBar.setGeometry(QtCore.QRect(10, 510, 350, 30))
         self.progressBar.setProperty("value", 100)
         self.progressBar.setObjectName("progressBar")
         self.AllcheckBox = QtWidgets.QCheckBox(self.centralwidget)
@@ -274,12 +265,10 @@ class Ui_MainWindow(object):
         self.listWidgetLocal.setGeometry(QtCore.QRect(10, 130, 350, 350))
         self.listWidgetLocal.setObjectName("listWidget")
         self.listWidgetLocal.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-    
         self.listWidgetRemote = QtWidgets.QListWidget(self.centralwidget)
         self.listWidgetRemote.setGeometry(QtCore.QRect(10, 130, 350, 350))
         self.listWidgetRemote.setObjectName("listWidgetRemote")
         self.listWidgetRemote.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 21))
@@ -293,22 +282,16 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-
-        mainLayoutLocal.addWidget(self.convertRecsBtn)
+        gridLayout.addWidget(self.convertRecsBtn, 0, 0)
         listLabelLayout.addWidget(self.label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
         listLabelLayout.addWidget(self.AllcheckBox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        mainLayoutLocal.addLayout(listLabelLayout)
-        mainLayoutLocal.addWidget(self.listWidgetLocal)
-        mainLayoutLocal.addWidget(self.progressBar)
-        mainLayoutRemote.addWidget(self.getRemoteRecsBtn, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-        mainLayoutRemote.addWidget(self.selectAgvComboBox, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-        mainLayoutRemote.addWidget(self.listWidgetRemote, stretch=100)
-        
-        mainLayoutRemote.addStretch()
-        mainLayout.addLayout(mainLayoutLocal, stretch=50)
-        mainLayout.addLayout(mainLayoutRemote, stretch=50)
-        self.centralwidget.setLayout(mainLayout)
-
+        gridLayout.addLayout(listLabelLayout, 1, 0)
+        gridLayout.addWidget(self.listWidgetLocal, 2, 0)
+        gridLayout.addWidget(self.progressBar, 3, 0)
+        gridLayout.addWidget(self.getRemoteRecsBtn, 0, 1)
+        gridLayout.addWidget(self.selectAgvComboBox, 1, 1)
+        gridLayout.addWidget(self.listWidgetRemote, 2, 1)
+        self.centralwidget.setLayout(gridLayout)
         self.retranslateUi(MainWindow)
         self.connectListeners()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -319,15 +302,11 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Recorder Gui"))
         self.convertRecsBtn.setText(_translate("MainWindow", "Convert Recordings"))
-        self.getRemoteRecsBtn.setText(_translate("MainWindow", "Get Remote Recordings"))
+        self.getRemoteRecsBtn.setText(_translate("MainWindow", "List Remote Recordings"))
         self.AllcheckBox.setText(_translate("MainWindow", "Convert ALL"))
-        self.label.setText(_translate("MainWindow", "Recordings in folder:"))
+        self.label.setText(_translate("MainWindow", "Recordings in local folder:"))
         __sortingEnabled = self.listWidgetLocal.isSortingEnabled()
         self.listWidgetLocal.setSortingEnabled(False)
-        #item = self.listWidget.item(0)
-        #item.setText(_translate("MainWindow", "Rec1"))
-        #item = self.listWidget.item(1)
-        #item.setText(_translate("MainWindow", "Rec2"))
         self.listWidgetLocal.setSortingEnabled(__sortingEnabled)
 
     def connectListeners(self):
@@ -444,14 +423,16 @@ class Ui_MainWindow(object):
             )
     
     def getRemoteRecordings(self):
-        print("Get Remote recs")
         callback = self.updateRemoteRecordingsOverview
-        self.model.rackConnection.doRequest("10.203.215.176", self.model, callback)
+        print("Getting remote recording list from " + str(self.selectAgvComboBox.currentText()))
+        IP = str(self.selectAgvComboBox.currentData()) # IP is stored in the data
+        self.listWidgetRemote.clear()
+        self.model.rackConnection.doRequest(IP, self.model, callback)
 
     def updateAgvList(self):
         self.selectAgvComboBox.clear()
         for agv in model.vehXml.agvs:
-            self.selectAgvComboBox.addItem(str(agv.ID) + ": " + agv.IP)
+            self.selectAgvComboBox.addItem(str(agv.ID) + ": " + agv.IP, agv.IP)
 
 
     def setProgressbar(self, percent):
