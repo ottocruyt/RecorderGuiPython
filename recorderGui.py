@@ -3,8 +3,8 @@
 import configparser
 import sys
 import os
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
+from PyQt5.QtCore import QObject, QThread, pyqtSignal, QUrl
 from pathlib import Path
 from robotic_scripts_tools.DatalogConverter import Recog3dToVideo
 #import ptvsd
@@ -62,6 +62,46 @@ class Agv():
         self.remoteRackRecordPath = remoteRackRecordPath
         self.remoteRackConfigPath = remoteRackConfigPath
         self.remoteRackCalibrationPath = remoteRackCalibrationPath
+
+class RackConnection():
+    def __init__(self, IP=''):
+        self.IP = IP
+
+
+    def doRequest(self, IP, model, callback):   
+        self.IP = IP
+        self.model = model
+        self.callback = callback
+        print("Initializing connection with " + str(IP))
+        url = 'http://' + str(IP) + '/cgi-bin/listTarFiles.cgi/logdata/'
+        req = QtNetwork.QNetworkRequest(QUrl(url))
+        self.nam = QtNetwork.QNetworkAccessManager()
+        self.nam.finished.connect(self.handleResponse)
+        self.nam.get(req)
+      
+    def handleResponse(self, reply):
+
+        er = reply.error()
+
+        if er == QtNetwork.QNetworkReply.NoError:
+
+            bytes_string = reply.readAll()
+            bytes_string_decoded = str(bytes_string, 'utf-8') 
+            #print(bytes_string_decoded)
+            bytes_string_decoded_split = bytes_string_decoded.split("\n")
+            remoteRackRecordings = []
+            remoteRackRecordings.clear()
+            for remoteRackRecording in bytes_string_decoded_split:
+                if(remoteRackRecording is not ''):
+                    print("recording from " + str(self.IP) + ": " + str(remoteRackRecording))
+                    remoteRackRecordings.append(remoteRackRecording)
+            self.model.remoteRecordings = remoteRackRecordings
+            self.model.printRemoteRecordings()
+        else:
+            print("Error occured: ", er)
+            print(reply.errorString())
+        
+        self.callback()
 
 class Recording():
     fileName = ''
@@ -123,10 +163,16 @@ class VehXml():
 class Model():
     cfg = Config()
     vehXml = VehXml(cfg.dictionary['veh_xml_path'])
-    recFolder = cfg.dictionary['rec_folder_path']
+    localRecFolder = cfg.dictionary['rec_folder_path']
+    rackConnection = RackConnection()
+    remoteRecordings = []
     def __init__(self):
         #self.cfg.writeCfg()
         self.vehXml.printAgvs()
+
+    def printRemoteRecordings(self):
+        for recording in self.remoteRecordings:
+            print("Model rec: " + str(recording))
 
 class ViewLoadedVehXml(QtWidgets.QMainWindow):
     def __init__(self, model, parent=None):
@@ -224,10 +270,15 @@ class Ui_MainWindow(object):
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(10, 100, 141, 16))
         self.label.setObjectName("label")
-        self.listWidget = QtWidgets.QListWidget(self.centralwidget)
-        self.listWidget.setGeometry(QtCore.QRect(10, 130, 350, 350))
-        self.listWidget.setObjectName("listWidget")
-        self.listWidget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.listWidgetLocal = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidgetLocal.setGeometry(QtCore.QRect(10, 130, 350, 350))
+        self.listWidgetLocal.setObjectName("listWidget")
+        self.listWidgetLocal.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+    
+        self.listWidgetRemote = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidgetRemote.setGeometry(QtCore.QRect(10, 130, 350, 350))
+        self.listWidgetRemote.setObjectName("listWidgetRemote")
+        self.listWidgetRemote.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -247,10 +298,12 @@ class Ui_MainWindow(object):
         listLabelLayout.addWidget(self.label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
         listLabelLayout.addWidget(self.AllcheckBox, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         mainLayoutLocal.addLayout(listLabelLayout)
-        mainLayoutLocal.addWidget(self.listWidget)
+        mainLayoutLocal.addWidget(self.listWidgetLocal)
         mainLayoutLocal.addWidget(self.progressBar)
         mainLayoutRemote.addWidget(self.getRemoteRecsBtn, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
         mainLayoutRemote.addWidget(self.selectAgvComboBox, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+        mainLayoutRemote.addWidget(self.listWidgetRemote, stretch=100)
+        
         mainLayoutRemote.addStretch()
         mainLayout.addLayout(mainLayoutLocal, stretch=50)
         mainLayout.addLayout(mainLayoutRemote, stretch=50)
@@ -259,7 +312,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.connectListeners()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        self.updateRecordingsOverview(model.recFolder)
+        self.updateRecordingsOverview(model.localRecFolder)
         self.updateAgvList()
 
     def retranslateUi(self, MainWindow):
@@ -269,13 +322,13 @@ class Ui_MainWindow(object):
         self.getRemoteRecsBtn.setText(_translate("MainWindow", "Get Remote Recordings"))
         self.AllcheckBox.setText(_translate("MainWindow", "Convert ALL"))
         self.label.setText(_translate("MainWindow", "Recordings in folder:"))
-        __sortingEnabled = self.listWidget.isSortingEnabled()
-        self.listWidget.setSortingEnabled(False)
+        __sortingEnabled = self.listWidgetLocal.isSortingEnabled()
+        self.listWidgetLocal.setSortingEnabled(False)
         #item = self.listWidget.item(0)
         #item.setText(_translate("MainWindow", "Rec1"))
         #item = self.listWidget.item(1)
         #item.setText(_translate("MainWindow", "Rec2"))
-        self.listWidget.setSortingEnabled(__sortingEnabled)
+        self.listWidgetLocal.setSortingEnabled(__sortingEnabled)
 
     def connectListeners(self):
         self.convertRecsBtn.clicked.connect(self.convertRecordings)
@@ -303,15 +356,15 @@ class Ui_MainWindow(object):
 
     def checkBoxChanged(self):
         if self.AllcheckBox.isChecked():
-            self.listWidget.selectAll()
+            self.listWidgetLocal.selectAll()
 
     def selectRecFolder(self):
-        folder = str(QtWidgets.QFileDialog.getExistingDirectory(None,directory=self.model.recFolder, caption="Select Recording Directory"))
+        folder = str(QtWidgets.QFileDialog.getExistingDirectory(None,directory=self.model.localRecFolder, caption="Select Recording Directory"))
         if folder:
             print('Newly selected recordings folder: ' + folder)
-            model.recFolder = folder
+            model.localRecFolder = folder
             model.cfg.set("paths", "rec_folder_path", str(folder))
-            self.updateRecordingsOverview(model.recFolder)
+            self.updateRecordingsOverview(model.localRecFolder)
         else:
             print('No folder selected.')
 
@@ -332,20 +385,30 @@ class Ui_MainWindow(object):
             print("Rec: " + entry.name + " at " + str(entry.resolve()))
 
         # show the recordings in the view
-        self.listWidget.clear()
+        self.listWidgetLocal.clear()
         for recording in recordings_in_folder:
             item = QtWidgets.QListWidgetItem()
             item.setText(recording.fileName)
             item.setData(PATH_ROLE, recording.path)
-            self.listWidget.addItem(item)       
+            self.listWidgetLocal.addItem(item)       
             print(recording.fileName)
             print(recording.path)
             count += 1
 
+    def updateRemoteRecordingsOverview(self):
+        count = 0
+        self.listWidgetRemote.clear()
+        for recording in self.model.remoteRecordings:
+            item = QtWidgets.QListWidgetItem()
+            item.setText(recording)
+            item.setData(PATH_ROLE, recording)
+            self.listWidgetRemote.addItem(item)       
+            count += 1
+
     def convertRecordings(self):
         if self.AllcheckBox.isChecked():
-            selected_items = self.listWidget.selectAll()
-        selected_items = self.listWidget.selectedItems()
+            selected_items = self.listWidgetLocal.selectAll()
+        selected_items = self.listWidgetLocal.selectedItems()
         print("Selected recordings: " + str(len(selected_items)))
         self.convertRecordingsTask(selected_items)
 
@@ -382,6 +445,8 @@ class Ui_MainWindow(object):
     
     def getRemoteRecordings(self):
         print("Get Remote recs")
+        callback = self.updateRemoteRecordingsOverview
+        self.model.rackConnection.doRequest("10.203.215.176", self.model, callback)
 
     def updateAgvList(self):
         self.selectAgvComboBox.clear()
