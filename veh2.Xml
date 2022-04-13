@@ -46,7 +46,7 @@
     <Egv>
       <Logger />
       <ID>test2</ID>
-      <IP>10.203.215.176</IP>
+      <IP>10.203.215.177</IP>
       <IONEnabled>false</IONEnabled>
       <Checked>false</Checked>
       <ConfigBackup>false</ConfigBackup>
