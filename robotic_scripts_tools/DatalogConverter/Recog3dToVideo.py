@@ -14,7 +14,7 @@ from .tools import DebugTool
 from .tools.datalog import BinaryHeader, BinarySubHeader, ObjRecogData, Scan3dData
 from .main.defines import ScanPoint, ObjRecogObj
 
-def RecordConverter(file):
+def RecordConverter(file, output_folder=""):
 	#input param was: (raw_args=None)
 	#parser = argparse.ArgumentParser(description='Convert 3D-Recog datalog to image and video file')
 	#parser.add_argument('file', metavar='input.tar.gz', type=str, default="", nargs='?',
@@ -78,9 +78,14 @@ def RecordConverter(file):
 
 	# create necesary folders
 	# define output filenames
+	# if no argument is provided, the output folder will be a subfolder with the same name as the .tar.gz file
+	
 	filename_output = os.path.basename(filename)
 	filename_output = os.path.splitext(os.path.splitext(filename_output)[0])[0]
-	foldername_output = os.path.splitext(os.path.splitext(filename)[0])[0]
+	if len(output_folder) < 1:
+		foldername_output = os.path.splitext(os.path.splitext(filename)[0])[0]
+	else:
+		foldername_output = os.path.join(output_folder,filename_output)
 
 	debug_tool.printDebug(filename_output)
 	if os.path.isfile(filename):
@@ -100,16 +105,34 @@ def RecordConverter(file):
 		os.makedirs(outpath)
 	else:
 		print("file doesn't exist -- abort")
-		exit(-1)
+		return -1
 		
 
-
-	# untar file
-	my_tar = tarfile.open(filename)
-	# todo: for now the file is appended to open_files manually because we are using a different open function
-	# from the tarfile library (tarfile.open('filename'))
+	try:
+		# untar file
+		my_tar = tarfile.open(filename)
+		# todo: for now the file is appended to open_files manually because we are using a different open function
+		# from the tarfile library (tarfile.open('filename'))
+	except tarfile.ReadError:
+		print("Problem opening tar file" + str(filename))
+		print("Stopping conversion...")
+		return -1
+	except:
+		print("Problem with tar file")
+		print("Stopping conversion...")
+		return -1
 	file_tool.open_files.append(my_tar)
-	my_tar.extractall(tmp_folder)
+
+	try:
+		my_tar.extractall(tmp_folder)
+	except tarfile.ReadError:
+		print("Problem reading tar file " + str(filename))
+		print("Stopping conversion...")
+		return -1
+	except:
+		print("Problem with tar file " + str(filename))
+		print("Stopping conversion...")
+		return -1
 	my_tar.close()
 	file_tool.open_files.remove(my_tar)
 
@@ -155,6 +178,8 @@ def RecordConverter(file):
 	if (video):
 		vid_prepare_progress = progress_manager.counter(total=datlen, desc='Preparing Video')
 	frame_progress = progress_manager.counter(total=datlen, desc='Frames', unit='frames')
+
+
 
 
 	def createScan3dObjImages(f_dat, f_raw, objrecog_datfiles):
@@ -357,7 +382,7 @@ def RecordConverter(file):
 	#        print("can't close all files -- not cleaning up tmp folder")
 	#    exit(-1)
 	shutil.rmtree(tmp_folder)
-	#exit(0)
+	return 0
 
 if __name__ == '__main__':
     RecordConverter()

@@ -66,7 +66,6 @@ class RackConnection():
     def __init__(self, IP=''):
         self.IP = IP
 
-
     def doRequest(self, IP, model, callback):   
         self.IP = IP
         self.model = model
@@ -223,7 +222,9 @@ class ConverterWorker(QObject):
         self.progress.emit(0)
         for item in self.selected_items:
             print("Converting recording at: " +  str(item.data(PATH_ROLE)))
-            Recog3dToVideo.RecordConverter(str(item.data(PATH_ROLE).resolve()))
+            error = Recog3dToVideo.RecordConverter(str(item.data(PATH_ROLE).resolve()))
+            if(error):
+                print("Error converting " + str(item.data(PATH_ROLE)))
             current_item += 1
             self.progress.emit(int(current_item/max(len(self.selected_items),1)*100))
         self.finished.emit()
