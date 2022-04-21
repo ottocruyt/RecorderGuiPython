@@ -7,7 +7,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
 from PyQt5.QtCore import QObject, QThread, pyqtSignal, QUrl
 from pathlib import Path
 from robotic_scripts_tools.DatalogConverter import Recog3dToVideo
-
+import requests
 
 PATH_ROLE = 32
 
@@ -77,12 +77,36 @@ class RackConnection():
         self.nam.finished.connect(self.handleResponse)
         self.nam.get(req)
         self.model.remoteRecordings.clear()
-      
+    
+    def download(self, IP, file, callback, progress):
+        self.IP = IP
+        self.callback = callback
+        self.progress = progress
+        print("Initializing connection with " + str(IP))
+        url = 'http://' + str(IP) + '/logdata/' + str(file)
+        req = requests.get(url, allow_redirects=True, stream=True)
+        out_path = os.path.join(str(self.model.localRecFolder), str(file)) 
+        print("Writing downloaded file to: " + str(out_path))
+        with open(out_path, 'wb') as f:
+            total_length = int(req.headers.get('content-length'))
+            expected_chunks=(total_length/1024) + 1
+            i = 0
+            for chunk in req.iter_content(chunk_size=1024): 
+                if chunk:
+                    i = i+1
+                    #print("Percentage completed: " + str(100*i/expected_chunks), end='\r')
+                    self.progress.emit(100*i/expected_chunks)
+                    f.write(chunk)
+                    f.flush()
+
+        self.callback()
+
     def handleResponse(self, reply):
 
         er = reply.error()
 
         if er == QtNetwork.QNetworkReply.NoError:
+            print("Connected to vehicle " + str(self.IP) + " RACK PC.")
             bytes_string = reply.readAll()
             bytes_string_decoded = str(bytes_string, 'utf-8') 
             #print(bytes_string_decoded)
@@ -93,6 +117,8 @@ class RackConnection():
                 if(remoteRackRecording is not ''):
                     print("recording from " + str(self.IP) + ": " + str(remoteRackRecording))
                     remoteRackRecordings.append(remoteRackRecording)
+            if(len(remoteRackRecordings) <= 0):
+                print("No recordings on vehicle "  + str(self.IP))
             self.model.remoteRecordings = remoteRackRecordings
         else:
             print("Error occured: ", er)
@@ -209,7 +235,6 @@ class ViewLoadedVehXml(QtWidgets.QMainWindow):
 class ConverterWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
-    sub_progress = pyqtSignal(int)
     selected_items = []
 
     def __init__(self, selected_items):
@@ -229,8 +254,35 @@ class ConverterWorker(QObject):
             self.progress.emit(int(current_item/max(len(self.selected_items),1)*100))
         self.finished.emit()
 
+class DownloadWorker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+    sub_progress = pyqtSignal(int)
+    selected_items = []
+
+    def __init__(self, IP, model, selected_items, callback):
+        super().__init__()
+        self.selected_items = selected_items
+        self.model = model
+        self.IP = IP
+        self.callback = callback
+
+    def run(self):
+        #ptvsd.debug_this_thread()
+        current_item = 0
+        self.progress.emit(0)
+        for item in self.selected_items:
+            print("Downloading recording: " + str(item.data(PATH_ROLE)))
+            # download
+            self.model.rackConnection.download(self.IP, item.data(PATH_ROLE), self.callback, self.sub_progress)
+            current_item += 1
+            self.progress.emit(int(current_item))
+        self.finished.emit()
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, model):
+        self.subProgress = 0
+        self.downloadedItems = 0
         self.model = model
         MainWindow.setObjectName("MainWindow")
         MainWindow.setWindowIcon(QtGui.QIcon("resources/cam.png"))
@@ -248,6 +300,11 @@ class Ui_MainWindow(object):
         self.getRemoteRecsBtn = QtWidgets.QPushButton(self.centralwidget)
         self.getRemoteRecsBtn.setFont(font)
         self.getRemoteRecsBtn.setObjectName("getRemoteRecsBtn")
+
+        self.downloadRemoteRecsBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.downloadRemoteRecsBtn.setFont(font)
+        self.downloadRemoteRecsBtn.setObjectName("downloadRemoteRecsBtn")
+
         self.selectAgvComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.selectAgvComboBox.setObjectName("selectAgvComboBox")
         self.selectAgvComboBox.setEditable(True)
@@ -256,6 +313,10 @@ class Ui_MainWindow(object):
         self.progressBar.setEnabled(False)
         self.progressBar.setProperty("value", 100)
         self.progressBar.setObjectName("progressBar")
+        self.progressBar2 = QtWidgets.QProgressBar(self.centralwidget)
+        self.progressBar2.setEnabled(False)
+        self.progressBar2.setProperty("value", 100)
+        self.progressBar2.setObjectName("progressBar2")
         self.AllcheckBox = QtWidgets.QCheckBox(self.centralwidget)
         self.AllcheckBox.setGeometry(QtCore.QRect(250, 100, 80, 20))
         self.AllcheckBox.setObjectName("AllcheckBox")
@@ -279,6 +340,7 @@ class Ui_MainWindow(object):
         self.SelectVehXmlAction = fileMenu.addAction("Select AGV Toolkit Vehicle XML")
         self.SelectRecFolderAction = fileMenu.addAction("Select Recording Folder")
         self.ViewLoadedVehXML = viewMenu.addAction("View loaded Vehicle XML")
+        self.OpenRecordFolder = viewMenu.addAction("Open recordings folder")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -290,8 +352,10 @@ class Ui_MainWindow(object):
         gridLayout.addWidget(self.listWidgetLocal, 2, 0)
         gridLayout.addWidget(self.progressBar, 3, 0)
         gridLayout.addWidget(self.getRemoteRecsBtn, 0, 1)
+        gridLayout.addWidget(self.downloadRemoteRecsBtn, 0, 2)
         gridLayout.addWidget(self.selectAgvComboBox, 1, 1)
         gridLayout.addWidget(self.listWidgetRemote, 2, 1)
+        gridLayout.addWidget(self.progressBar2, 3, 1)
         self.centralwidget.setLayout(gridLayout)
         self.retranslateUi(MainWindow)
         self.connectListeners()
@@ -304,6 +368,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Recorder Gui"))
         self.convertRecsBtn.setText(_translate("MainWindow", "Convert Recordings"))
         self.getRemoteRecsBtn.setText(_translate("MainWindow", "List Remote Recordings"))
+        self.downloadRemoteRecsBtn.setText(_translate("MainWindow", "Download"))
         self.AllcheckBox.setText(_translate("MainWindow", "Convert ALL"))
         self.label.setText(_translate("MainWindow", "Recordings in local folder:"))
         __sortingEnabled = self.listWidgetLocal.isSortingEnabled()
@@ -313,11 +378,12 @@ class Ui_MainWindow(object):
     def connectListeners(self):
         self.convertRecsBtn.clicked.connect(self.convertRecordings)
         self.getRemoteRecsBtn.clicked.connect(self.getRemoteRecordings)
+        self.downloadRemoteRecsBtn.clicked.connect(self.downloadRecordings)
         self.SelectRecFolderAction.triggered.connect(self.selectRecFolder)
         self.ViewLoadedVehXML.triggered.connect(self.viewLoadedVehXML)
         self.SelectVehXmlAction.triggered.connect(self.selectVehXml)
         self.AllcheckBox.stateChanged.connect(self.checkBoxChanged)
-        self.viewLoadedVehXMLWindow = ViewLoadedVehXml(self.model)
+        self.OpenRecordFolder.triggered.connect(self.openRecordFolder)
 
     def selectVehXml(self):
         dlg = QtWidgets.QFileDialog()
@@ -326,10 +392,10 @@ class Ui_MainWindow(object):
         if dlg.exec_():
             filename = dlg.selectedFiles()
             print("Newly selected Vehicle xml: " + str(filename))
-            model.vehXml.setPath(filename[0])
+            self.model.vehXml.setPath(filename[0])
             print("New agv list:")
-            model.vehXml.printAgvs()
-            model.cfg.set("paths", "veh_xml_path",filename[0])
+            self.model.vehXml.printAgvs()
+            self.model.cfg.set("paths", "veh_xml_path",filename[0])
             self.updateAgvList()
         else:
             print("Nothing Selected")
@@ -342,14 +408,21 @@ class Ui_MainWindow(object):
         folder = str(QtWidgets.QFileDialog.getExistingDirectory(None,directory=self.model.localRecFolder, caption="Select Recording Directory"))
         if folder:
             print('Newly selected recordings folder: ' + folder)
-            model.localRecFolder = folder
-            model.cfg.set("paths", "rec_folder_path", str(folder))
+            self.model.localRecFolder = folder
+            self.model.cfg.set("paths", "rec_folder_path", str(folder))
             self.updateRecordingsOverview(model.localRecFolder)
         else:
             print('No folder selected.')
 
     def viewLoadedVehXML(self):
+        self.viewLoadedVehXMLWindow = ViewLoadedVehXml(self.model)
         self.viewLoadedVehXMLWindow.show()
+
+    def openRecordFolder(self):
+        if(os.path.isdir(self.model.localRecFolder)):
+            os.startfile(self.model.localRecFolder)
+        else:
+            print("Recording folder doesn't exist: " + str(self.model.localRecFolder))
 
     def scanForTarFiles(self, dir):
         return Path(dir).rglob("*.tar.gz")
@@ -392,6 +465,37 @@ class Ui_MainWindow(object):
         print("Selected recordings: " + str(len(selected_items)))
         self.convertRecordingsTask(selected_items)
 
+    def downloadRecordingsTask(self, IP, model, selected_items, callback):
+            self.selectedItems2 = selected_items
+            # Step 2: Create a QThread object
+            self.thread2 = QThread()
+            # Step 3: Create a worker object
+            self.worker2 = DownloadWorker(IP, model, selected_items, callback)
+            # Step 4: Move worker to the thread
+            self.worker2.moveToThread(self.thread2)
+            # Step 5: Connect signals and slots
+            self.thread2.started.connect(self.worker2.run)
+            self.worker2.finished.connect(self.thread2.quit)
+            self.worker2.finished.connect(self.worker2.deleteLater)
+            self.thread2.finished.connect(self.thread2.deleteLater)
+            self.worker2.progress.connect(self.setDownloadProgressTotal)
+            self.worker2.sub_progress.connect(self.setDownloadSubProgress)
+
+
+            # Step 6: Start the thread
+            self.thread2.start()
+            self.downloadRemoteRecsBtn.setEnabled(False)
+            # Final resets
+            self.thread2.finished.connect(
+                lambda: print("Download thread finished")
+            )
+            self.thread2.finished.connect(
+                lambda: self.setProgressbar2(100)
+            )
+            self.thread2.finished.connect(
+                lambda: self.downloadRemoteRecsBtn.setEnabled(True)
+            )
+
     def convertRecordingsTask(self, selected_items):
             self.selectedItems = selected_items
             self.convertRecsBtn.setEnabled(True)
@@ -430,15 +534,45 @@ class Ui_MainWindow(object):
         self.listWidgetRemote.clear()
         self.model.rackConnection.doRequest(IP, self.model, callback)
 
+    def downloadRecordings(self):
+        callback = self.updateLocalRecordingsOverview
+        print("Downloading remote recording list from " + str(self.selectAgvComboBox.currentText()))
+        IP = str(self.selectAgvComboBox.currentData()) # IP is stored in the data
+        selected_items = self.listWidgetRemote.selectedItems()
+        print("Selected recordings: " + str(len(selected_items)))
+        self.downloadRecordingsTask(IP, self.model, selected_items, callback)
+        
+
+    def updateLocalRecordingsOverview(self):
+        self.updateRecordingsOverview(model.localRecFolder)
+
+
     def updateAgvList(self):
         self.selectAgvComboBox.clear()
-        for agv in model.vehXml.agvs:
+        for agv in self.model.vehXml.agvs:
             self.selectAgvComboBox.addItem(str(agv.ID) + ": " + agv.IP, agv.IP)
 
 
     def setProgressbar(self, percent):
-        print("\nSet progress to: " + str(percent) + "\n")
+        #print("\nSet progress to: " + str(percent) + "\n")
         self.progressBar.setProperty("value", percent)
+    
+    def setDownloadProgressTotal(self, downloadedItems):
+        print("Downloaded items: " + str(downloadedItems))
+        self.downloadedItems = downloadedItems
+        self.subProgress = 0
+        self.combineProgressBar2()
+
+    def setDownloadSubProgress(self, percent):
+        self.subProgress = percent
+        self.combineProgressBar2()
+
+    def combineProgressBar2(self):
+        self.setProgressbar2(self.subProgress/len(self.selectedItems2) + 100*self.downloadedItems/len(self.selectedItems2))
+
+    def setProgressbar2(self, percent):
+        #print("\nSet progress 2 to: " + str(percent) + "\n")
+        self.progressBar2.setProperty("value", percent)
 
 if __name__ == "__main__":
     import sys
